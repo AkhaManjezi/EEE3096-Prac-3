@@ -4,8 +4,8 @@
  * Modified for EEE3095S/3096S by Keegan Crankshaw
  * August 2019
  * 
- * <STUDNUM_1> <STUDNUM_2>
- * Date
+ * GEOJNW001 MNJSIN002
+ * Date: 20 August 2019
 */
 
 #include <wiringPi.h>
