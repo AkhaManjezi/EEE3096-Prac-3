@@ -12,6 +12,7 @@
 #include <wiringPiI2C.h>
 #include <stdio.h> //For printf functions
 #include <stdlib.h> // For system functions
+#include <math.h>
 
 #include "BinClock.h"
 #include "CurrentTime.h"
@@ -40,8 +41,8 @@ void initGPIO(void){
 	}
 	
 	//Set Up the Seconds LED for PWM
-	//Write your logic here
-	
+	pinMode(SECS, PWM_OUTPUT);
+
 	printf("LEDS done\n");
 	
 	//Set up the Buttons
@@ -49,7 +50,7 @@ void initGPIO(void){
 		pinMode(BTNS[j], INPUT);
 		pullUpDnControl(BTNS[j], PUD_UP);
 	}
-	
+
 	//Attach interrupts to Buttons
 	//Write your logic here
 	
@@ -106,14 +107,31 @@ int hFormat(int hours){
  * Turns on corresponding LED's for hours
  */
 void lightHours(int units){
-	// Write your logic to light up the hour LEDs here	
+	// Write your logic to light up the hour LEDs here
+	int n = 4;
+    for (int i = 3; i >= 0; i--) {
+        int k = n >> i;
+        if (k & 1)
+            digitalWrite(LED[3-i], 1);
+        else
+            digitalWrite(LED[3-i], 0);
+    }
 }
+//https://www.geeksforgeeks.org/program-decimal-binary-conversion/
 
 /*
  * Turn on the Minute LEDs
  */
 void lightMins(int units){
 	//Write your logic to light up the minute LEDs here
+    int n = 6;
+    for (int i = 5; i >= 0; i--) {
+        int k = n >> i;
+        if (k & 1)
+            digitalWrite(LED[9-i], 1);
+        else
+            digitalWrite(LED[9-i], 0);
+    }
 }
 
 /*
@@ -123,6 +141,8 @@ void lightMins(int units){
  */
 void secPWM(int units){
 	// Write your logic here
+	int pwmValue = round((units/59)*1024);
+	pwmWrite (SECS, pwmValue));
 }
 
 /*
