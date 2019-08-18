@@ -13,6 +13,7 @@
 #include <stdio.h> //For printf functions
 #include <stdlib.h> // For system functions
 #include <math.h>
+#include <signal.h>
 
 #include "BinClock.h"
 #include "CurrentTime.h"
@@ -61,6 +62,14 @@ void initGPIO(void){
 	printf("Setup done\n");
 }
 
+void cleanGPIO(void) {
+    digitalWrite(LEDS[0],0);
+	for(int i = 0; i < sizeof(LEDS)/sizeof(LEDS[0]); i++){
+		pinMode(LEDS[i], INPUT);
+	}
+	pinMode(SECS, INPUT);
+	exit(1);
+}
 
 /*
  * The main function
@@ -68,11 +77,12 @@ void initGPIO(void){
  */
 int main(void){
 	initGPIO();
+	signal(SIGINT, cleanGPIO);
 
 	//Set random time (3:04PM)
 	//You can comment this file out later
 	wiringPiI2CWriteReg8(RTC, HOUR, 0x13+TIMEZONE);
-	wiringPiI2CWriteReg8(RTC, MIN, 0x4);
+	wiringPiI2CWriteReg8(RTC, MIN, 0x58);
 	wiringPiI2CWriteReg8(RTC, SEC, 0x80);
 	
 	// Repeat this until we shut down
@@ -289,8 +299,9 @@ void minInc(void){
 		mins = minsTens*10 + minsOnes;
 		
 		mins = mins + 1;
-		if(mins == 61){
+		if(mins == 60){
 		    mins = 0;
+		    hourInc();
 		}
 		
 		minsTens = mins/10;
@@ -325,3 +336,4 @@ void toggleTime(void){
 	}
 	lastInterruptTime = interruptTime;
 }
+
