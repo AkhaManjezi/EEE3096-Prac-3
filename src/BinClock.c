@@ -52,6 +52,8 @@ void initGPIO(void){
 	}
 
 	//Attach interrupts to Buttons
+    wiringPiISR (BTNS[0], INT_EDGE_FALLING, hourInc);
+    wiringPiISR (BTNS[1], INT_EDGE_FALLING, minInc);
 	//Write your logic here
 	
 	printf("BTNS done\n");
@@ -76,10 +78,16 @@ int main(void){
 	for (;;){
 		//Fetch the time from the RTC
 		//Write your logic here
-		
+		hours = wiringPiI2CReadReg8(RTC, HOUR);
+		mins = wiringPiI2CReadReg8(RTC, MIN);
+		secs = wiringPiI2CReadReg8(RTC, SECS);
+
 		//Function calls to toggle LEDs
 		//Write your logic here
-		
+		lightHours(hours);
+		lightMins(mins)
+		secPWM(secs)
+
 		// Print out the time we have stored on our RTC
 		printf("The current time is: %x:%x:%x\n", hours, mins, secs);
 
@@ -150,9 +158,9 @@ void secPWM(int units){
  * This function may not be necessary if you use bit-shifting rather than decimal checking for writing out time values
  */
 int hexCompensation(int units){
-	/*Convert HEX or BCD value to DEC where 0x45 == 0d45 
+	/*Convert HEX or BCD value to DEC where 0x45 == 0d45
 	  This was created as the lighXXX functions which determine what GPIO pin to set HIGH/LOW
-	  perform operations which work in base10 and not base16 (incorrect logic) 
+	  perform operations which work in base10 and not base16 (incorrect logic)
 	*/
 	int unitsU = units%0x10;
 
@@ -216,7 +224,15 @@ void hourInc(void){
 		//Fetch RTC Time
 		//Increase hours by 1, ensuring not to overflow
 		//Write hours back to the RTC
-	}
+        hours = wiringPiI2CReadReg8(RTC, HOUR);
+        mins = wiringPiI2CReadReg8(RTC, MIN);
+        secs = wiringPiI2CReadReg8(RTC, SECS);
+        hours = hours + 1;
+        if(hours = 25){
+            hours = 0;
+        }
+        wiringPiI2CWriteReg8(RTC, HOUR, hours);
+    }
 	lastInterruptTime = interruptTime;
 }
 
@@ -234,6 +250,14 @@ void minInc(void){
 		//Fetch RTC Time
 		//Increase minutes by 1, ensuring not to overflow
 		//Write minutes back to the RTC
+        hours = wiringPiI2CReadReg8(RTC, HOUR);
+        mins = wiringPiI2CReadReg8(RTC, MIN);
+        secs = wiringPiI2CReadReg8(RTC, SECS);
+        mins = mins + 1;
+        if(mins = 61){
+            mins = 0;
+        }
+        wiringPiI2CWriteReg8(RTC, MIN, mins);
 	}
 	lastInterruptTime = interruptTime;
 }
