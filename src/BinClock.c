@@ -36,23 +36,24 @@ void initGPIO(void){
 	RTC = wiringPiI2CSetup(RTCAddr); //Set up the RTC
 	
 	//Set up the LEDS
-	for(int i; i < sizeof(LEDS)/sizeof(LEDS[0]); i++){
+	for(int i=0; i < sizeof(LEDS)/sizeof(LEDS[0]); i++){
 	    pinMode(LEDS[i], OUTPUT);
 	}
 	
 	//Set Up the Seconds LED for PWM
 	pinMode(SECS, PWM_OUTPUT);
+	//softPwmCreate (SECS, 0, 59);
 
 	printf("LEDS done\n");
 	
 	//Set up the Buttons
-	for(int j; j < sizeof(BTNS)/sizeof(BTNS[0]); j++){
+	for(int j=0; j < sizeof(BTNS)/sizeof(BTNS[0]); j++){
 		pinMode(BTNS[j], INPUT);
 		pullUpDnControl(BTNS[j], PUD_UP);
 	}
 
 	//Attach interrupts to Buttons
-    wiringPiISR (BTNS[0], INT_EDGE_FALLING, hourInc);
+    wiringPiISR (5, INT_EDGE_FALLING, hourInc);
     wiringPiISR (BTNS[1], INT_EDGE_FALLING, minInc);
 	//Write your logic here
 	
@@ -80,13 +81,12 @@ int main(void){
 		//Write your logic here
 		hours = wiringPiI2CReadReg8(RTC, HOUR);
 		mins = wiringPiI2CReadReg8(RTC, MIN);
-		secs = wiringPiI2CReadReg8(RTC, SECS);
-
-		//Function calls to toggle LEDs
-		//Write your logic here
+		secs = wiringPiI2CReadReg8(RTC, SEC);
+		secs = secs & 127;
+		
 		lightHours(hours);
-		lightMins(mins)
-		secPWM(secs)
+		lightMins(mins);
+		secPWM(secs);
 
 		// Print out the time we have stored on our RTC
 		printf("The current time is: %x:%x:%x\n", hours, mins, secs);
@@ -116,13 +116,21 @@ int hFormat(int hours){
  */
 void lightHours(int units){
 	// Write your logic to light up the hour LEDs here
-	int n = 4;
+	int hours = units;
+	
+	int hoursTens = hours & 48;
+	hoursTens = hoursTens >> 4;
+	int hoursOnes = hours & 15;
+	hours = hoursTens*10 + hoursOnes;
+	
+	int n = hFormat(hours);
+
     for (int i = 3; i >= 0; i--) {
         int k = n >> i;
         if (k & 1)
-            digitalWrite(LED[3-i], 1);
+            digitalWrite(LEDS[3-i], 1);
         else
-            digitalWrite(LED[3-i], 0);
+            digitalWrite(LEDS[3-i], 0);
     }
 }
 //https://www.geeksforgeeks.org/program-decimal-binary-conversion/
@@ -132,13 +140,20 @@ void lightHours(int units){
  */
 void lightMins(int units){
 	//Write your logic to light up the minute LEDs here
-    int n = 6;
+	int mins = units;
+	
+	int minsTens = mins & 112;
+	minsTens = minsTens >> 4;
+	int minsOnes = mins & 15;
+	mins = minsTens*10 + minsOnes;
+	
+    int n = mins;
     for (int i = 5; i >= 0; i--) {
         int k = n >> i;
         if (k & 1)
-            digitalWrite(LED[9-i], 1);
+            digitalWrite(LEDS[9-i], 1);
         else
-            digitalWrite(LED[9-i], 0);
+            digitalWrite(LEDS[9-i], 0);
     }
 }
 
@@ -149,8 +164,15 @@ void lightMins(int units){
  */
 void secPWM(int units){
 	// Write your logic here
-	int pwmValue = round((units/59)*1024);
-	pwmWrite (SECS, pwmValue));
+	int secs = units;
+	int secsTens = secs & 112;
+	secsTens = secsTens >> 4;
+	int secsOnes = secs & 15;
+	secs = secsTens*10 + secsOnes;
+	double pwmValue = round(((double)secs/59) * 1023);
+	int value = pwmValue;
+	//softPwmWrite (SECS, secs);
+	pwmWrite (SECS, value);
 }
 
 /*
@@ -224,14 +246,23 @@ void hourInc(void){
 		//Fetch RTC Time
 		//Increase hours by 1, ensuring not to overflow
 		//Write hours back to the RTC
-        hours = wiringPiI2CReadReg8(RTC, HOUR);
-        mins = wiringPiI2CReadReg8(RTC, MIN);
-        secs = wiringPiI2CReadReg8(RTC, SECS);
-        hours = hours + 1;
-        if(hours = 25){
-            hours = 0;
-        }
-        wiringPiI2CWriteReg8(RTC, HOUR, hours);
+		hours = wiringPiI2CReadReg8(RTC, HOUR);
+		
+		int hoursTens = hours & 48;
+		hoursTens = hoursTens >> 4;
+		int hoursOnes = hours & 15;
+		hours = hoursTens*10 + hoursOnes;
+		
+		hours = hours + 1;
+		if(hours == 25){
+		    hours = 0;
+		}
+		
+		hoursTens = hours/10;
+		hoursOnes = hours%10;
+		hoursTens = hoursTens << 4;
+		hours = hoursTens | hoursOnes;
+		wiringPiI2CWriteReg8(RTC, HOUR, hours);
     }
 	lastInterruptTime = interruptTime;
 }
@@ -250,14 +281,23 @@ void minInc(void){
 		//Fetch RTC Time
 		//Increase minutes by 1, ensuring not to overflow
 		//Write minutes back to the RTC
-        hours = wiringPiI2CReadReg8(RTC, HOUR);
-        mins = wiringPiI2CReadReg8(RTC, MIN);
-        secs = wiringPiI2CReadReg8(RTC, SECS);
-        mins = mins + 1;
-        if(mins = 61){
-            mins = 0;
-        }
-        wiringPiI2CWriteReg8(RTC, MIN, mins);
+		mins = wiringPiI2CReadReg8(RTC, MIN);
+		
+		int minsTens = mins & 112;
+		minsTens = minsTens >> 4;
+		int minsOnes = mins & 15;
+		mins = minsTens*10 + minsOnes;
+		
+		mins = mins + 1;
+		if(mins == 61){
+		    mins = 0;
+		}
+		
+		minsTens = mins/10;
+		minsOnes = mins%10;
+		minsTens = minsTens << 4;
+		mins = minsTens | minsOnes;
+		wiringPiI2CWriteReg8(RTC, MIN, mins);
 	}
 	lastInterruptTime = interruptTime;
 }
