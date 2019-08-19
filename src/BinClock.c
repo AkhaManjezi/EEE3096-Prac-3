@@ -43,7 +43,6 @@ void initGPIO(void){
 	
 	//Set Up the Seconds LED for PWM
 	pinMode(SECS, PWM_OUTPUT);
-	//softPwmCreate (SECS, 0, 59);
 
 	printf("LEDS done\n");
 	
@@ -54,7 +53,7 @@ void initGPIO(void){
 	}
 
 	//Attach interrupts to Buttons
-    wiringPiISR (5, INT_EDGE_FALLING, hourInc);
+    wiringPiISR (BTNS[0], INT_EDGE_FALLING, hourInc);
     wiringPiISR (BTNS[1], INT_EDGE_FALLING, minInc);
 	//Write your logic here
 	
@@ -79,7 +78,7 @@ int main(void){
 	initGPIO();
 	signal(SIGINT, cleanGPIO);
 
-	//Set random time (3:04PM)
+	//Set random time (3:58PM)
 	//You can comment this file out later
 	wiringPiI2CWriteReg8(RTC, HOUR, 0x13+TIMEZONE);
 	wiringPiI2CWriteReg8(RTC, MIN, 0x58);
@@ -128,10 +127,12 @@ void lightHours(int units){
 	// Write your logic to light up the hour LEDs here
 	int hours = units;
 	
-	int hoursTens = hours & 48;
-	hoursTens = hoursTens >> 4;
-	int hoursOnes = hours & 15;
-	hours = hoursTens*10 + hoursOnes;
+	//~ int hoursTens = hours & 48;
+	//~ hoursTens = hoursTens >> 4;
+	//~ int hoursOnes = hours & 15;
+	//~ hours = hoursTens*10 + hoursOnes;
+	
+	hours = hexCompensation(hours);
 	
 	int n = hFormat(hours);
 
@@ -143,7 +144,6 @@ void lightHours(int units){
             digitalWrite(LEDS[3-i], 0);
     }
 }
-//https://www.geeksforgeeks.org/program-decimal-binary-conversion/
 
 /*
  * Turn on the Minute LEDs
@@ -152,10 +152,7 @@ void lightMins(int units){
 	//Write your logic to light up the minute LEDs here
 	int mins = units;
 	
-	int minsTens = mins & 112;
-	minsTens = minsTens >> 4;
-	int minsOnes = mins & 15;
-	mins = minsTens*10 + minsOnes;
+	mins = hexCompensation(mins);
 	
     int n = mins;
     for (int i = 5; i >= 0; i--) {
@@ -175,13 +172,9 @@ void lightMins(int units){
 void secPWM(int units){
 	// Write your logic here
 	int secs = units;
-	int secsTens = secs & 112;
-	secsTens = secsTens >> 4;
-	int secsOnes = secs & 15;
-	secs = secsTens*10 + secsOnes;
+	secs = hexCompensation(secs);
 	double pwmValue = round(((double)secs/59) * 1023);
 	int value = pwmValue;
-	//softPwmWrite (SECS, secs);
 	pwmWrite (SECS, value);
 }
 
@@ -257,21 +250,14 @@ void hourInc(void){
 		//Increase hours by 1, ensuring not to overflow
 		//Write hours back to the RTC
 		hours = wiringPiI2CReadReg8(RTC, HOUR);
-		
-		int hoursTens = hours & 48;
-		hoursTens = hoursTens >> 4;
-		int hoursOnes = hours & 15;
-		hours = hoursTens*10 + hoursOnes;
+		hours = hexCompensation(hours);
 		
 		hours = hours + 1;
-		if(hours == 25){
+		if(hours == 24){
 		    hours = 0;
 		}
 		
-		hoursTens = hours/10;
-		hoursOnes = hours%10;
-		hoursTens = hoursTens << 4;
-		hours = hoursTens | hoursOnes;
+		hours = decCompensation(hours);
 		wiringPiI2CWriteReg8(RTC, HOUR, hours);
     }
 	lastInterruptTime = interruptTime;
@@ -293,10 +279,7 @@ void minInc(void){
 		//Write minutes back to the RTC
 		mins = wiringPiI2CReadReg8(RTC, MIN);
 		
-		int minsTens = mins & 112;
-		minsTens = minsTens >> 4;
-		int minsOnes = mins & 15;
-		mins = minsTens*10 + minsOnes;
+		mins = hexCompensation(mins);
 		
 		mins = mins + 1;
 		if(mins == 60){
@@ -304,10 +287,7 @@ void minInc(void){
 		    hourInc();
 		}
 		
-		minsTens = mins/10;
-		minsOnes = mins%10;
-		minsTens = minsTens << 4;
-		mins = minsTens | minsOnes;
+		mins = decCompensation(mins);
 		wiringPiI2CWriteReg8(RTC, MIN, mins);
 	}
 	lastInterruptTime = interruptTime;
